@@ -671,9 +671,11 @@ nsRetrievalContextWayland::TransferFastTrackClipboard(
         if (dataLength > 0) {
             mClipboardDataLength = dataLength;
             mClipboardData = reinterpret_cast<char*>(
-                g_malloc(sizeof(char)*mClipboardDataLength));
-            memcpy(mClipboardData, gtk_selection_data_get_data(aSelectionData),
-                   sizeof(char)*mClipboardDataLength);
+                g_malloc(sizeof(char)*(mClipboardDataLength+1)));
+            memcpy(mClipboardData,
+                   (const char *)gtk_selection_data_get_data(aSelectionData),
+                   sizeof(char)*(mClipboardDataLength+1));
+            mClipboardData[mClipboardDataLength] = '\0';
         }
     } else {
         NS_WARNING("Received obsoleted clipboard data!");
