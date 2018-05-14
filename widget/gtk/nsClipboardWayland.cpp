@@ -720,7 +720,8 @@ nsRetrievalContextWayland::GetClipboardData(const char* aMimeType,
 }
 
 const char*
-nsRetrievalContextWayland::GetClipboardText(int32_t aWhichClipboard)
+nsRetrievalContextWayland::GetClipboardText(int32_t aWhichClipboard,
+                                            uint32_t* aContentLength)
 {
     GdkAtom selection = GetSelectionAtom(aWhichClipboard);
     DataOffer* dataOffer = (selection == GDK_SELECTION_PRIMARY) ?
@@ -730,9 +731,8 @@ nsRetrievalContextWayland::GetClipboardText(int32_t aWhichClipboard)
 
     for (unsigned int i = 0; i < sizeof(sTextMimeTypes); i++) {
         if (dataOffer->HasTarget(sTextMimeTypes[i])) {
-            uint32_t unused;
             return GetClipboardData(sTextMimeTypes[i], aWhichClipboard,
-                                    &unused);
+                                    aContentLength);
         }
     }
     return nullptr;

@@ -275,6 +275,9 @@ nsClipboard::GetData(nsITransferable *aTransferable, int32_t aWhichClipboard)
         nsCString flavorStr;
         currentFlavor->ToString(getter_Copies(flavorStr));
 
+        uint32_t clipboardDataLength;
+        const char* clipboardData;
+
         if (flavorStr.EqualsLiteral(kJPEGImageMime) ||
             flavorStr.EqualsLiteral(kJPGImageMime) ||
             flavorStr.EqualsLiteral(kPNGImageMime) ||
@@ -284,11 +287,9 @@ nsClipboard::GetData(nsITransferable *aTransferable, int32_t aWhichClipboard)
                 flavorStr.Assign(kJPEGImageMime);
             }
 
-            uint32_t    clipboardDataLength;
-            const char* clipboardData =
-                mContext->GetClipboardData(flavorStr.get(),
-                                           aWhichClipboard,
-                                           &clipboardDataLength);
+            clipboardData = mContext->GetClipboardData(flavorStr.get(),
+                                                       aWhichClipboard,
+                                                       &clipboardDataLength);
             if (!clipboardData)
                 continue;
 
@@ -307,9 +308,9 @@ nsClipboard::GetData(nsITransferable *aTransferable, int32_t aWhichClipboard)
         // Special case text/unicode since we can convert any
         // string into text/unicode
         if (flavorStr.EqualsLiteral(kUnicodeMime)) {
-            const char* clipboardData =
-                mContext->GetClipboardText(aWhichClipboard);
-            if (!clipboardData) {
+            clipboardData = mContext->GetClipboardText(aWhichClipboard,
+                                                       &clipboardDataLength);
+            if (!clipboardData || !clipboardDataLength) {
                 // If the type was text/unicode and we couldn't get
                 // text off the clipboard, run the next loop
                 // iteration.
@@ -317,7 +318,7 @@ nsClipboard::GetData(nsITransferable *aTransferable, int32_t aWhichClipboard)
             }
 
             // Convert utf-8 into our unicode format.
-            NS_ConvertUTF8toUTF16 ucs2string(clipboardData);
+            NS_ConvertUTF8toUTF16 ucs2string(clipboardData, clipboardDataLength);
             const char* unicodeData = (const char *)ToNewUnicode(ucs2string);
             uint32_t unicodeDataLength = ucs2string.Length() * 2;
             SetTransferableData(aTransferable, flavorStr,
@@ -329,8 +330,7 @@ nsClipboard::GetData(nsITransferable *aTransferable, int32_t aWhichClipboard)
         }
 
 
-        uint32_t clipboardDataLength;
-        const char* clipboardData = mContext->GetClipboardData(
+        clipboardData = mContext->GetClipboardData(
             flavorStr.get(), aWhichClipboard, &clipboardDataLength);
 
         if (clipboardData) {
