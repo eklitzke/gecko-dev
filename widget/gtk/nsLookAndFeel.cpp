@@ -455,6 +455,16 @@ static int32_t ConvertGTKStepperStyleToMozillaScrollArrowStyle(GtkWidget* aWidge
                          mozilla::LookAndFeel::eScrollArrow_StartForward);
 }
 
+static bool AllowDarkTheme() {
+    if (XRE_IsContentProcess()) {
+        return mozilla::Preferences::GetBool("widget.content.allow-gtk-dark-theme",
+                                              false);
+    }
+    return (PR_GetEnv("MOZ_ALLOW_GTK_DARK_THEME") != nullptr) ||
+            mozilla::Preferences::GetBool("widget.chrome.allow-gtk-dark-theme",
+                                          false);
+}
+
 nsresult
 nsLookAndFeel::GetIntImpl(IntID aID, int32_t &aResult)
 {
@@ -829,20 +839,8 @@ nsLookAndFeel::EnsureInit()
 
     // To avoid triggering reload of theme settings unnecessarily, only set the
     // setting when necessary.
-    if (darkThemeDefault) {
-        bool allowDarkTheme;
-        if (XRE_IsContentProcess()) {
-            allowDarkTheme =
-                mozilla::Preferences::GetBool("widget.content.allow-gtk-dark-theme",
-                                              false);
-        } else {
-            allowDarkTheme = (PR_GetEnv("MOZ_ALLOW_GTK_DARK_THEME") != nullptr) ||
-                mozilla::Preferences::GetBool("widget.chrome.allow-gtk-dark-theme",
-                                              false);
-        }
-        if (!allowDarkTheme) {
-            g_object_set(settings, dark_setting, FALSE, nullptr);
-        }
+    if (darkThemeDefault && !AllowDarkTheme()) {
+        g_object_set(settings, dark_setting, FALSE, nullptr);
     }
 
     // Allow content Gtk theme override by pref, it's useful when styled Gtk+
@@ -853,6 +851,17 @@ nsLookAndFeel::EnsureInit()
                                          contentThemeName);
         if (!contentThemeName.IsEmpty()) {
             g_object_set(settings, "gtk-theme-name", contentThemeName.get(), nullptr);
+        } else if (!darkThemeDefault && !AllowDarkTheme()) {
+            // This is a hack to suppress dark themes on GNOME 3.28+, which
+            // doesn't use the gtk-application-prefer-dark-theme option.
+            // Instead, we explicitly check for an Adwaita-dark theme, and set
+            // it to Adwaita-light.
+            gchar *themeName;
+            g_object_get(settings, "gtk-theme-name", &themeName, nullptr);
+            if (g_strcmp0(themeName, "Adwaita-dark") == 0) {
+                g_object_set(settings, "gtk-theme-name", "Adwaita-light", nullptr);
+            }
+            g_free(themeName);
         }
     }
 
